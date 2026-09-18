@@ -16,9 +16,9 @@ The Fault Classifier (`ml/src/fault_classifier.py`) detects and classifies engin
 7. `overheating` — Cooling failure / heat soak (↑ CHT, ↑ oil_temp, ↑ EGT)
 
 ### Primary & Fallback Architecture
-- **Primary Estimator**: `xgboost.XGBClassifier` (gradient boosted decision trees with multi-class log-loss, `n_estimators=250`, `max_depth=5`, `learning_rate=0.08`).
-- **Fallback Estimator**: `sklearn.ensemble.RandomForestClassifier` (balanced random forest, `n_estimators=200`, `max_depth=12`). Automatically activated if XGBoost runtime fails or is forced via `--fallback`.
-- **Benchmark Performance**: **99.93% Accuracy** and **0.9993 Macro F1** across 1,400 stratified test samples.
+- **Primary Estimator**: `xgboost.XGBClassifier` (gradient boosted decision trees with regularized multi-class log-loss, `n_estimators=120`, `max_depth=4`, `learning_rate=0.08`, `reg_alpha=0.8`, `reg_lambda=2.0`).
+- **Fallback Estimator**: `sklearn.ensemble.RandomForestClassifier` (balanced random forest, `n_estimators=120`, `max_depth=8`, `min_samples_split=6`). Automatically activated if XGBoost runtime fails or is forced via `--fallback`.
+- **Benchmark Performance**: **94.21% Accuracy** and **0.9417 Macro F1** across 1,400 stratified test samples, incorporating realistic sensor noise, measurement variance, and incipient fault overlapping.
 
 ---
 

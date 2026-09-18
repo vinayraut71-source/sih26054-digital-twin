@@ -221,11 +221,13 @@ class FaultClassifier:
                 import xgboost as xgb
                 logger.info("Training primary XGBoost multi-class classifier...")
                 model = xgb.XGBClassifier(
-                    n_estimators=250,
-                    max_depth=5,
+                    n_estimators=120,
+                    max_depth=4,
                     learning_rate=0.08,
-                    subsample=0.85,
-                    colsample_bytree=0.85,
+                    subsample=0.8,
+                    colsample_bytree=0.8,
+                    reg_alpha=0.8,
+                    reg_lambda=2.0,
                     eval_metric="mlogloss",
                     random_state=random_state,
                     n_jobs=-1,
@@ -243,8 +245,10 @@ class FaultClassifier:
             from sklearn.ensemble import RandomForestClassifier
             logger.info("Training fallback Random Forest multi-class classifier...")
             model = RandomForestClassifier(
-                n_estimators=200,
-                max_depth=12,
+                n_estimators=120,
+                max_depth=8,
+                min_samples_split=6,
+                min_samples_leaf=2,
                 class_weight="balanced",
                 random_state=random_state,
                 n_jobs=-1,

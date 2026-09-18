@@ -40,18 +40,20 @@ DEFAULT_OUTPUT_PATH = Path(__file__).resolve().parent.parent / "data" / "labelle
 
 
 def generate_telemetry_dataset(
-    samples_per_class: int = 1500,
-    severities: tuple[float, ...] = (0.3, 0.6, 1.0),
+    samples_per_class: int = 1000,
+    incipient_ratio: float = 0.40,
+    noise_scale: float = 1.9,
     profiles: tuple[str, ...] = ("standard_isa", "ladakh", "haa"),
     output_path: Optional[Path | str] = None,
     seed: int = 42,
 ) -> pd.DataFrame:
     """
-    Generate synthetic labelled telemetry for all fault classes.
+    Generate synthetic labelled telemetry with realistic sensor noise and incipient fault overlap.
 
     Args:
         samples_per_class: Number of samples to generate per fault class.
-        severities: Severity levels to cycle through for fault scenarios.
+        incipient_ratio: Fraction of fault samples that are low-severity incipient degradation.
+        noise_scale: Standard deviation scaling for transducer/environmental noise.
         profiles: Mission profile names to cycle through.
         output_path: Optional CSV output filepath.
         seed: Random seed for reproducibility.
@@ -70,9 +72,7 @@ def generate_telemetry_dataset(
 
         for i in range(samples_per_class):
             profile_name = profiles[i % len(profiles)]
-            # Cycle through profile phases
             gen = profile_generator(profile_name)
-            # Advance generator partially to simulate diverse mission phases
             skip_steps = (i * 13) % 200
             for _ in range(skip_steps):
                 next(gen)
@@ -82,9 +82,12 @@ def generate_telemetry_dataset(
             state = model.tick()
 
             if scenario != "normal":
-                base_sev = severities[i % len(severities)]
-                # Add minor continuous jitter to severity
-                sev = float(np.clip(base_sev + rng.normal(0, 0.05), 0.1, 1.2))
+                if rng.random() < incipient_ratio:
+                    # Incipient stage: low severity, overlaps naturally with normal operating variations
+                    sev = float(rng.uniform(0.04, 0.20))
+                else:
+                    # Developed fault stage
+                    sev = float(rng.uniform(0.25, 0.85))
                 delta, label = get_fault_delta(scenario, severity=sev)
                 if delta:
                     model.apply_perturbation(delta)
@@ -95,15 +98,24 @@ def generate_telemetry_dataset(
             state = model.tick()
             current_time += timedelta(seconds=1)
 
+            # Inject realistic sensor measurement noise & environmental variance
+            rpm_val = round(float(state.rpm + rng.normal(0, 15 * noise_scale)), 1)
+            egt_val = round(float(state.egt + rng.normal(0, 8 * noise_scale)), 1)
+            cht_val = round(float(state.cht + rng.normal(0, 4 * noise_scale)), 1)
+            oil_p_val = round(float(np.clip(state.oil_pressure + rng.normal(0, 0.15 * noise_scale), 0.5, 8.0)), 3)
+            oil_t_val = round(float(state.oil_temp + rng.normal(0, 3 * noise_scale)), 1)
+            fuel_f_val = round(float(np.clip(state.fuel_flow + rng.normal(0, 0.5 * noise_scale), 2.0, 35.0)), 2)
+            vib_val = round(float(np.clip(state.vibration + rng.normal(0, 0.03 * noise_scale), 0.01, 1.5)), 4)
+
             records.append({
                 "timestamp": current_time.isoformat(),
-                "rpm": round(state.rpm, 1),
-                "egt": round(state.egt, 1),
-                "cht": round(state.cht, 1),
-                "oil_pressure": round(state.oil_pressure, 3),
-                "oil_temp": round(state.oil_temp, 1),
-                "fuel_flow": round(state.fuel_flow, 2),
-                "vibration": round(state.vibration, 4),
+                "rpm": rpm_val,
+                "egt": egt_val,
+                "cht": cht_val,
+                "oil_pressure": oil_p_val,
+                "oil_temp": oil_t_val,
+                "fuel_flow": fuel_f_val,
+                "vibration": vib_val,
                 "altitude": round(state.altitude, 1),
                 "ambient_temp": round(state.ambient_temp, 1),
                 "fault_label": state.fault_label or "normal",
