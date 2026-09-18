@@ -82,7 +82,7 @@ async def _infer_and_publish(sample: dict) -> None:
         return   # healthy — do not publish an alert
 
     # 2. Fault classification
-    fault_label, confidence, _ = classifier.predict(sample)
+    fault_label, confidence = classifier.predict(sample)
 
     # 3. RUL estimation
     rul.update(sample)
@@ -115,7 +115,8 @@ async def lifespan(app: FastAPI):
 
     # Load models (best-effort — service stays up even without trained models)
     anomaly.load()
-    classifier.load()
+    if classifier.load() and classifier.model is not None:
+        explainer.setup(classifier.model, None)
     rul.load()
 
     # Connect MQTT
@@ -158,7 +159,7 @@ async def infer(sample: dict):
     Accepts a telemetry JSON body and returns anomaly score + fault prediction.
     """
     anomaly_score = anomaly.score(sample)
-    fault_label, confidence, prob_map = classifier.predict(sample)
+    fault_label, confidence, prob_map = classifier.predict(sample, return_probs=True)
     rul.update(sample)
     rul_hours = rul.predict()
     top_features = explainer.top_features(sample)

@@ -18,13 +18,20 @@ API docs: http://localhost:8001/docs
 docker compose exec timescaledb psql -U digital_twin -d engine_db \
   -c "\COPY (SELECT * FROM telemetry) TO '/tmp/telemetry.csv' CSV HEADER"
 
+# Or generate synthetic labelled telemetry from simulator physics
+python src/generate_dataset.py --samples 1000
+
 # Then train each model
 python -m src.anomaly_detection
-python -m src.fault_classifier
+python -m src.fault_classifier            # XGBoost primary (or --fallback for Random Forest)
 python -m src.rul_model
 ```
 
-Trained models are saved to `models/` (gitignored).
+## Running Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## Files
 
@@ -32,8 +39,10 @@ Trained models are saved to `models/` (gitignored).
 |------|---------|
 | `src/serve.py` | FastAPI + MQTT subscriber → inference → alert publisher |
 | `src/anomaly_detection.py` | Isolation Forest wrapper |
-| `src/fault_classifier.py` | XGBoost 7-class classifier |
+| `src/fault_classifier.py` | XGBoost 7-class classifier with Random Forest fallback |
+| `src/generate_dataset.py` | Synthetic telemetry generator from engine physics |
 | `src/rul_model.py` | GRU regression for RUL |
 | `src/explainability.py` | SHAP top-K feature extractor |
+| `tests/test_fault_classifier.py` | Unit and integration tests |
 
 **Owner**: ML1, ML2

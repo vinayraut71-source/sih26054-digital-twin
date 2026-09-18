@@ -25,6 +25,7 @@ dist/
 
 # ─── ML artefacts ────────────────────────────────────────
 ml/models/*.pkl
+!ml/models/fault_classifier.pkl
 ml/models/*.onnx
 ml/models/*.pt
 ml/data/*.csv

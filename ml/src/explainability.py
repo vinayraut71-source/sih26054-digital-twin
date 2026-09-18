@@ -58,11 +58,14 @@ class SHAPExplainer:
         try:
             x = np.array([[sample.get(c, 0.0) for c in FEATURE_COLS]])
             values = self._explainer.shap_values(x)
-            # For multiclass, values is a list of arrays (one per class)
+            # Handle list, 3D array (samples, features, classes), or 2D array
             if isinstance(values, list):
-                values = np.max(np.abs(values), axis=0)
-            abs_vals = np.abs(values[0])
-            top_idx = np.argsort(abs_vals)[::-1][:k]
+                abs_vals = np.max([np.abs(v[0]) for v in values], axis=0)
+            elif isinstance(values, np.ndarray) and values.ndim == 3:
+                abs_vals = np.max(np.abs(values[0]), axis=-1)
+            else:
+                abs_vals = np.abs(values[0])
+            top_idx = [int(i) for i in np.argsort(abs_vals)[::-1][:k]]
             return [FEATURE_COLS[i] for i in top_idx]
         except Exception as exc:  # noqa: BLE001
             logger.warning("SHAP inference failed: %s", exc)
